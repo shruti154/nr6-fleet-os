@@ -1,0 +1,102 @@
+# NR6 robot catalogue
+# Prices are indicative list prices in GBP. price_status says how reliable each one is.
+# fault_rate = expected interventions per working hour (simulation assumption).
+
+robots:
+  - id: pudu_cc1
+    name: Pudu CC1
+    vendor: Pudu
+    category: Cleaning
+    job: 4-in-1 sweep, scrub, vacuum and mop
+    price_gbp: 18000
+    price_status: listed
+    price_source: RobotLAB list US$24,000, converted at 0.75
+    hours_per_month: 160
+    fault_rate: 0.03
+
+  - id: gausium_s50
+    name: Gausium Scrubber 50 Pro
+    vendor: Gausium
+    category: Cleaning
+    job: Mid-size autonomous floor scrubber
+    price_gbp: 36000
+    price_status: listed
+    price_source: RobotLAB list US$43,000 to 51,600, mid-point converted
+    hours_per_month: 180
+    fault_rate: 0.025
+
+  - id: keenon_t8
+    name: Keenon T8
+    vendor: Keenon
+    category: Delivery
+    job: Compact tray delivery for restaurants
+    price_gbp: 15700
+    price_status: listed
+    price_source: UK reseller £15,719 ex VAT
+    hours_per_month: 220
+    fault_rate: 0.025
+
+  - id: keenon_w3
+    name: Keenon W3
+    vendor: Keenon
+    category: Delivery
+    job: Hotel room-service robot with lockable compartments
+    price_gbp: 24500
+    price_status: listed
+    price_source: Irish reseller €28,560 ex VAT, converted
+    hours_per_month: 200
+    fault_rate: 0.03
+
+
+  - id: pudu_t300
+    name: Pudu T300
+    vendor: Pudu
+    category: Logistics
+    job: 300 kg industrial transport robot
+    price_gbp: 15750
+    price_status: listed
+    price_source: RobotLAB list US$21,000
+    hours_per_month: 300
+    fault_rate: 0.025
+
+  - id: tibot_tmoov
+    name: Tibot T-MOOV
+    vendor: Tibot
+    category: Agriculture
+    job: Poultry-house robot that keeps the flock moving
+    price_gbp: 9000
+    price_status: placeholder
+    price_source: Price on request, placeholder until quoted
+    hours_per_month: 400
+    fault_rate: 0.035
+
+  - id: unitree_g1
+    name: Unitree G1
+    vendor: Unitree
+    category: Humanoid
+    job: Humanoid for demos and pilots, not a proven worker yet
+    price_gbp: 10100
+    price_status: listed
+    price_source: Unitree store US$13,500, converted
+    hours_per_month: 80
+    fault_rate: 0.35
+
+sectors:
+  - id: fm
+    name: Commercial cleaning and FM
+    fits: [Cleaning]
+  - id: hospitality
+    name: Hospitality
+    fits: [Delivery, Cleaning]
+  - id: retail
+    name: Retail
+    fits: [Cleaning]
+  - id: warehousing
+    name: Warehousing and logistics
+    fits: [Logistics, Cleaning]
+  - id: agriculture
+    name: Agriculture and poultry
+    fits: [Agriculture]
+  - id: pilots
+    name: Humanoid pilots
+    fits: [Humanoid]
