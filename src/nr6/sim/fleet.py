@@ -1,6 +1,7 @@
 import random
 
 from nr6.catalogue import load_catalogue
+from nr6.db import save_run
 from nr6.sim.robot import Robot, TICKS_PER_HOUR
 
 DRAIN_PER_HOUR = 12   # placeholder: same for every robot until we add it to the catalogue
@@ -49,3 +50,7 @@ if __name__ == "__main__":
     total_interventions = sum(robot.interventions for robot in fleet)
     print(f"\nFleet: {total_interventions} interventions in {total_hours:.0f} robot-hours")
     print(f"Interventions per robot-hour: {total_interventions / total_hours:.3f}")
+    
+    save_run(events, fleet)
+    
+    
