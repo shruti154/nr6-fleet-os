@@ -26,4 +26,13 @@ print(con.sql("""
     ORDER BY per_robot_hour DESC
 """).df())
 
+print("\n4. Which models had the most faults?")
+print(con.sql("""
+    SELECT model, COUNT(*) AS faults
+    FROM events
+    WHERE event = 'FAULT'
+    GROUP BY model
+    ORDER BY faults DESC
+""").df())
+
 con.close()
