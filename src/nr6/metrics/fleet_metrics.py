@@ -16,10 +16,11 @@ WITH_FAULT_STARTS = """
 """
 
 
-def run_query(sql):
-    """Run one SQL query against the fleet database and return a pandas table."""
+def run_query(sql, params=None):
+    """Run one SQL query against the fleet database and return a pandas table.
+    params fills in any ? placeholders safely."""
     con = duckdb.connect(str(DB_FILE), read_only=True)
-    result = con.sql(sql).df()
+    result = con.execute(sql, params or []).df()
     con.close()
     return result
 
@@ -102,3 +103,14 @@ def daily_kpis():
         GROUP BY day
         ORDER BY day
     """)
+    
+
+
+def robot_history(robot_serial):
+    """Every report from one robot, in time order."""
+    return run_query("""
+        SELECT observed_at, vendor, state, battery_pct, fault_code
+        FROM telemetry
+        WHERE robot_serial = ?
+        ORDER BY observed_at
+    """, [robot_serial])

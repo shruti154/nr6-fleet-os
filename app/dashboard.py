@@ -1,4 +1,7 @@
 import random
+from dataclasses import asdict
+from datetime import datetime
+from types import SimpleNamespace
 
 import altair as alt
 import pandas as pd
@@ -7,6 +10,7 @@ import streamlit as st
 from nr6.catalogue import load_catalogue
 from nr6.metrics import fleet_metrics as m
 from nr6.pipeline import ADAPTERS, run_pipeline, save_telemetry
+from nr6.sim.vendor_messages import ENCODERS
 
 st.set_page_config(page_title="NR6 Fleet OS", layout="wide")
 
@@ -40,6 +44,7 @@ st.html(f"""
   .tile .state {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.06em; }}
   .tile .bar {{ height: 4px; background: {LINE}; border-radius: 2px; margin-top: 0.55rem; overflow: hidden; }}
   .tile .bar i {{ display: block; height: 100%; }}
+  .st-key-raw, .st-key-canon, .st-key-timeline {{ background: {SURFACE}; }}
   .stButton button[kind="primary"] {{ color: #0E151D; font-weight: 600; }}
 </style>
 """)
@@ -215,5 +220,55 @@ st.dataframe(
         "availability_pct": st.column_config.NumberColumn("Availability", format="%.1f%%"),
     },
 )
+
+# ---------- Inside one robot: raw vendor message vs NR6 canonical record ----------
+st.write("")
+st.html('<div class="eyebrow">Inside one robot</div>')
+st.subheader("Same moment, two languages")
+
+pick_left, pick_right = st.columns([1, 1.4])
+with pick_left:
+    chosen_robot = st.selectbox("Robot", robots.sort_values("robot")["robot"], key="detail_robot")
+history = m.robot_history(chosen_robot)
+faults = history[history["state"] == "FAULT"]
+with pick_right:
+    options = ["Latest report"] + (["Most recent fault"] if len(faults) else [])
+    moment = st.segmented_control("Moment", options, default=options[-1], key="detail_moment")
+
+row = faults.iloc[-1] if moment == "Most recent fault" else history.iloc[-1]
+vendor = row["vendor"]
+
+# Rebuild what the robot sent at that moment, in its own vendor's format,
+# then translate it with the same adapter the pipeline uses.
+snapshot = SimpleNamespace(robot_id=chosen_robot, state=row["state"],
+                           battery=row["battery_pct"], fault_code=row["fault_code"])
+raw = ENCODERS[vendor](snapshot, datetime.fromisoformat(row["observed_at"]))
+canonical = asdict(ADAPTERS[vendor](raw))
+
+raw_col, canon_col = st.columns(2)
+with raw_col.container(border=True, key="raw"):
+    st.markdown(f"**What the {vendor} robot sends**")
+    st.caption(f"{vendor}'s own field names, codes and units")
+    st.json(raw)
+with canon_col.container(border=True, key="canon"):
+    st.markdown("**What NR6 stores**")
+    st.caption(f"After the {vendor} adapter: the same for every brand")
+    st.json(canonical)
+
+# The robot's last two days: battery level, with fault moments marked in red
+with st.container(border=True, key="timeline"):
+    st.markdown(f"**{chosen_robot} · last 48 hours**")
+    recent = history.tail(48 * 12).copy()
+    recent["time"] = pd.to_datetime(recent["observed_at"])
+    battery_line = alt.Chart(recent).mark_line(strokeWidth=1.6, color=BLUE).encode(
+        x=alt.X("time:T", title=None, axis=alt.Axis(format="%a %H:%M", grid=False)),
+        y=alt.Y("battery_pct:Q", title="Battery %", scale=alt.Scale(domain=[0, 100])),
+        tooltip=[alt.Tooltip("time:T", format="%a %d %b %H:%M"), "state:N", "battery_pct:Q", "fault_code:N"],
+    )
+    fault_marks = alt.Chart(recent[recent["state"] == "FAULT"]).mark_rule(
+        color=STATE_COLOURS["FAULT"], strokeWidth=2, opacity=0.8).encode(
+        x="time:T", tooltip=[alt.Tooltip("time:T", format="%a %H:%M"), "fault_code:N"])
+    st.altair_chart((fault_marks + battery_line).properties(height=180), width="stretch")
+    st.caption("Blue line: battery. Red lines: reports while the robot was in a fault state.")
 
 st.caption("All data is simulated. Fault rates are assumptions for illustration, not vendor measurements.")
