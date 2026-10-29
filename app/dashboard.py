@@ -1,8 +1,12 @@
+import random
+
 import altair as alt
 import pandas as pd
 import streamlit as st
 
+from nr6.catalogue import load_catalogue
 from nr6.metrics import fleet_metrics as m
+from nr6.pipeline import ADAPTERS, run_pipeline, save_telemetry
 
 st.set_page_config(page_title="NR6 Fleet OS", layout="wide")
 
@@ -29,13 +33,14 @@ st.html(f"""
   .chip b {{ font-weight: 500; margin-left: 0.35rem; }}
   .dot {{ display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.4rem; }}
   .st-key-panel, .st-key-panel2 {{ background: {SURFACE}; }}
-  .board {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 0.6rem; }}
+  .board {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.6rem; }}
   .tile {{ background: {SURFACE}; border: 1px solid {LINE}; border-radius: 4px; padding: 0.7rem 0.8rem; }}
   .tile .id {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: {INK}; }}
   .tile .vendor {{ font-size: 0.75rem; color: {MUTED}; margin-bottom: 0.5rem; }}
   .tile .state {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.06em; }}
   .tile .bar {{ height: 4px; background: {LINE}; border-radius: 2px; margin-top: 0.55rem; overflow: hidden; }}
   .tile .bar i {{ display: block; height: 100%; }}
+  .stButton button[kind="primary"] {{ color: #0E151D; font-weight: 600; }}
 </style>
 """)
 
@@ -53,7 +58,40 @@ def nr6_chart_theme():
     }}
 
 
-vendor_scale = alt.Scale(domain=list(VENDOR_COLOURS), range=list(VENDOR_COLOURS.values()))
+# ---------- Sidebar: build a fleet and run a new simulation ----------
+DEFAULT_FLEET = {"pudu_cc1": 3, "keenon_t8": 3, "pudu_t300": 2, "unitree_g1": 1}
+
+with st.sidebar:
+    st.html('<div class="eyebrow">Simulation controls</div>')
+    st.subheader("Build a fleet")
+
+    catalogue, _ = load_catalogue()
+    has_adapter = catalogue["vendor"].isin(list(ADAPTERS))
+    order = {}
+    for _, robot in catalogue[has_adapter].iterrows():
+        order[robot["id"]] = st.number_input(
+            robot["name"], min_value=0, max_value=20, step=1,
+            value=DEFAULT_FLEET.get(robot["id"], 0), key=f"qty_{robot['id']}",
+            help=f"{robot['category']} · £{robot['price_gbp']:,.0f} each",
+        )
+
+    waiting = sorted(catalogue[~has_adapter]["vendor"].unique())
+    if waiting:
+        st.caption(f"Not available yet: {', '.join(waiting)} (no adapter written)")
+
+    days = st.slider("Days to simulate", min_value=1, max_value=14, value=7)
+    seed = st.number_input("Random seed", min_value=0, max_value=9999, value=42,
+                           help="Same seed and fleet give the same result every time.")
+
+    if st.button("Run simulation", type="primary", width="stretch"):
+        chosen = {robot_id: qty for robot_id, qty in order.items() if qty > 0}
+        if not chosen:
+            st.warning("Add at least one robot first.")
+        else:
+            with st.spinner("Simulating the fleet..."):
+                random.seed(seed)
+                save_telemetry(run_pipeline(chosen, days))
+            st.toast(f"Simulated {sum(chosen.values())} robots for {days} days")
 
 # ---------- Data ----------
 summary = m.fleet_summary().iloc[0]
@@ -69,6 +107,10 @@ start = pd.Timestamp(summary["period_start"]).strftime("%a %d %b")
 end = pd.Timestamp(summary["period_end"]).strftime("%a %d %b %Y")
 per_robot_hour = summary["interventions"] / summary["robot_hours"]
 state_counts = robots["current_state"].value_counts()
+
+# Only show vendors that are actually in this fleet, each in its own colour
+present = [v for v in VENDOR_COLOURS if v in set(vendors["vendor"])]
+vendor_scale = alt.Scale(domain=present, range=[VENDOR_COLOURS[v] for v in present])
 
 # ---------- Header ----------
 head_left, head_right = st.columns([1.3, 1])
