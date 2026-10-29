@@ -18,7 +18,12 @@ def build_fleet(order):
         spec = specs.loc[model_id]
         for _ in range(quantity):
             robot_id = f"NR6-{number:04d}"
-            fleet.append(Robot(robot_id, spec["name"], DRAIN_PER_HOUR, spec["fault_rate"]))
+            if spec["category"] == "Humanoid":
+                possible_faults = ("FALL_DETECTED", "NAV_STUCK")
+            else:
+                possible_faults = ("NAV_STUCK", "OBSTRUCTION")
+            fleet.append(Robot(robot_id, spec["name"], DRAIN_PER_HOUR, spec["fault_rate"],
+                               vendor=spec["vendor"], possible_faults=possible_faults))
             number = number + 1
     return fleet
 
@@ -50,7 +55,5 @@ if __name__ == "__main__":
     total_interventions = sum(robot.interventions for robot in fleet)
     print(f"\nFleet: {total_interventions} interventions in {total_hours:.0f} robot-hours")
     print(f"Interventions per robot-hour: {total_interventions / total_hours:.3f}")
-    
+
     save_run(events, fleet)
-    
-    

@@ -8,9 +8,12 @@ CHARGE_PER_HOUR = 40             # % of battery regained per hour on the dock
 class Robot:
     """One robot in the NR6 fleet."""
 
-    def __init__(self, robot_id, model, drain_per_hour, fault_rate):
+    def __init__(self, robot_id, model, drain_per_hour, fault_rate,
+                 vendor="Generic", possible_faults=("NAV_STUCK", "OBSTRUCTION")):
         self.robot_id = robot_id
         self.model = model
+        self.vendor = vendor
+        self.possible_faults = possible_faults
         self.drain_per_hour = drain_per_hour
         self.fault_rate = fault_rate
         self.battery = 100.0
@@ -18,6 +21,7 @@ class Robot:
         self.hours_worked = 0.0
         self.interventions = 0
         self.fault_ticks_left = 0
+        self.fault_code = None
 
     def step(self):
         """Move this robot forward by one 5-minute tick.
@@ -28,6 +32,7 @@ class Robot:
             self.fault_ticks_left = self.fault_ticks_left - 1
             if self.fault_ticks_left <= 0:
                 self.state = "IDLE"
+                self.fault_code = None
                 self.interventions = self.interventions + 1
                 return "RESOLVED"
             return None
@@ -48,6 +53,7 @@ class Robot:
         # Did it break down during these 5 minutes?
         if random.random() < self.fault_rate * TICK_HOURS:
             self.state = "FAULT"
+            self.fault_code = random.choice(self.possible_faults)
             self.fault_ticks_left = random.randint(1, 6)   # fixed in 5 to 30 minutes
             return "FAULT"
 
