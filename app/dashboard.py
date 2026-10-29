@@ -11,6 +11,7 @@ from nr6.catalogue import load_catalogue
 from nr6.metrics import fleet_metrics as m
 from nr6.pipeline import ADAPTERS, run_pipeline, save_telemetry
 from nr6.sim.vendor_messages import ENCODERS
+from nr6.ui import BLUE, INK, MUTED, STATE_COLOURS, VENDOR_COLOURS, YELLOW, apply_style
 
 st.set_page_config(page_title="NR6 Fleet OS", layout="wide")
 
@@ -241,7 +242,7 @@ vendor = row["vendor"]
 # Rebuild what the robot sent at that moment, in its own vendor's format,
 # then translate it with the same adapter the pipeline uses.
 snapshot = SimpleNamespace(robot_id=chosen_robot, state=row["state"],
-                           battery=row["battery_pct"], fault_code=row["fault_code"])
+                           battery=row["battery_pct"], fault_code=row["fault_code"] if pd.notna(row["fault_code"]) else None)
 raw = ENCODERS[vendor](snapshot, datetime.fromisoformat(row["observed_at"]))
 canonical = asdict(ADAPTERS[vendor](raw))
 
