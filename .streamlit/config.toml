@@ -1,0 +1,26 @@
+[client]
+toolbarMode = "minimal"
+
+[theme]
+base = "dark"
+backgroundColor = "#0E151D"
+secondaryBackgroundColor = "#17222D"
+textColor = "#E4EAF0"
+primaryColor = "#7CC4F5"
+borderColor = "#263443"
+baseRadius = "4px"
+font = "Public Sans:https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&display=swap"
+headingFont = "Barlow Semi Condensed:https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&display=swap"
+codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
+metricValueFontWeight = 600
+headingFontSizes = ["2.5rem", "1.6rem", "1.15rem"]
+redColor = "#F2685C"
+orangeColor = "#F5C542"
+greenColor = "#5CC08A"
+chartCategoricalColors = ["#8A9BB0", "#7CC4F5", "#F5C542"]
+
+[theme.sidebar]
+backgroundColor = "#0A1016"
+textColor = "#E4EAF0"
+secondaryBackgroundColor = "#17222D"
+borderColor = "#263443"
