@@ -26,7 +26,7 @@ def apply_style():
                border: 1px solid {LINE}; border-radius: 999px; color: {INK}; background: {SURFACE}; }}
       .chip b {{ font-weight: 500; margin-left: 0.35rem; }}
       .dot {{ display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.4rem; }}
-      [class*="st-key-panel"], .st-key-raw, .st-key-canon, .st-key-timeline {{ background: {SURFACE}; }}
+      [class*="st-key-panel"] {{ background: {SURFACE}; }}
       .board {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.6rem; }}
       .tile {{ background: {SURFACE}; border: 1px solid {LINE}; border-radius: 4px; padding: 0.7rem 0.8rem; }}
       .tile .id {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: {INK}; }}
@@ -34,6 +34,8 @@ def apply_style():
       .tile .state {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.06em; }}
       .tile .bar {{ height: 4px; background: {LINE}; border-radius: 2px; margin-top: 0.55rem; overflow: hidden; }}
       .tile .bar i {{ display: block; height: 100%; }}
+      .tile .risk {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.66rem; letter-spacing: 0.05em;
+                     margin-top: 0.5rem; }}
       .stButton button[kind="primary"] {{ color: #0E151D; font-weight: 600; }}
     </style>
     """)

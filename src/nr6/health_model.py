@@ -59,6 +59,41 @@ def train_and_evaluate(order, days=28, seed=7):
     return model, train, test, auc
 
 
+DEFAULT_TRAINING_FLEET = {"pudu_cc1": 3, "keenon_t8": 3, "pudu_t300": 2, "unitree_g1": 1}
+
+
+def train_model(order=None, days=28, seed=7):
+    """Train the health model on a simulated month. Used by the dashboard."""
+    random.seed(seed)
+    data = make_features(run_pipeline(order or DEFAULT_TRAINING_FLEET, days))
+    model = LogisticRegression(max_iter=1000)
+    model.fit(data[FEATURES], data["fault_next_6h"])
+    return model
+
+
+def current_risk(telemetry, model):
+    """Each robot's chance of a new fault in the next 6 hours, judged from its latest report."""
+    rows = []
+    for robot, g in telemetry.sort_values("observed_at").groupby("robot_serial"):
+        in_fault = (g["state"] == "FAULT").astype(int)
+        started = (in_fault == 1) & (in_fault.shift(1, fill_value=0) == 0)
+        last = g.iloc[-1]
+        rows.append({
+            "robot": robot,
+            "vendor": last["vendor"],
+            "motor_temp_c": last["motor_temp_c"],
+            "temp_avg_last_6h": g["motor_temp_c"].tail(HORIZON).mean(),
+            "faults_last_24h": started.tail(LOOKBACK).sum(),
+            "fault_time_last_24h": in_fault.tail(LOOKBACK).mean(),
+            "battery_pct": last["battery_pct"],
+        })
+    now = pd.DataFrame(rows)
+    for v in VENDORS:
+        now[f"is_{v}"] = (now["vendor"] == v).astype(int)
+    now["risk"] = model.predict_proba(now[FEATURES])[:, 1]
+    return now.sort_values("risk", ascending=False).reset_index(drop=True)
+
+
 if __name__ == "__main__":
     order = {"pudu_cc1": 3, "keenon_t8": 3, "pudu_t300": 2, "unitree_g1": 1}
     model, train, test, auc = train_and_evaluate(order)

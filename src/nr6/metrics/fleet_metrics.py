@@ -58,7 +58,7 @@ def interventions_by_day():
     """How many new faults each vendor's robots had on each day."""
     return run_query(f"""
         WITH t AS ({WITH_FAULT_STARTS})
-        SELECT CAST(CAST(observed_at AS TIMESTAMPTZ) AS DATE) AS day,
+        SELECT CAST(LEFT(observed_at, 10) AS DATE) AS day,   -- the date part of the UTC timestamp
                vendor,
                SUM(CASE WHEN fault_started THEN 1 ELSE 0 END) AS interventions
         FROM t
@@ -88,8 +88,7 @@ def robot_table():
         GROUP BY t.robot_serial, t.vendor, latest.current_state, latest.battery
         ORDER BY interventions DESC
     """)
-    
-    
+
 
 def daily_kpis():
     """The headline numbers worked out for each day, for the small trend lines."""
@@ -103,7 +102,6 @@ def daily_kpis():
         GROUP BY day
         ORDER BY day
     """)
-    
 
 
 def robot_history(robot_serial):
@@ -114,3 +112,8 @@ def robot_history(robot_serial):
         WHERE robot_serial = ?
         ORDER BY observed_at
     """, [robot_serial])
+
+
+def all_telemetry():
+    """Every canonical record, for the health model."""
+    return run_query("SELECT * FROM telemetry ORDER BY robot_serial, observed_at")

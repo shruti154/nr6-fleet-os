@@ -8,60 +8,15 @@ import pandas as pd
 import streamlit as st
 
 from nr6.catalogue import load_catalogue
+from nr6.health_model import current_risk, train_model
 from nr6.metrics import fleet_metrics as m
 from nr6.pipeline import ADAPTERS, run_pipeline, save_telemetry
 from nr6.sim.vendor_messages import ENCODERS
-from nr6.ui import BLUE, INK, MUTED, STATE_COLOURS, VENDOR_COLOURS, YELLOW, apply_style
+from nr6.ui import BLUE, GREEN, INK, MUTED, RED, STATE_COLOURS, VENDOR_COLOURS, YELLOW, apply_style
 
 st.set_page_config(page_title="NR6 Fleet OS", layout="wide")
 
-# ---------- Design tokens: every colour used on the page, in one place ----------
-INK = "#E4EAF0"        # main text
-MUTED = "#93A3B5"      # labels, axes
-SURFACE = "#141E28"    # card background
-LINE = "#263443"       # borders
-BLUE = "#7CC4F5"       # main accent
-YELLOW = "#F5C542"     # "watch this"
-VENDOR_COLOURS = {"Keenon": "#8A9BB0", "Pudu": BLUE, "Unitree": YELLOW}
-STATE_COLOURS = {"WORKING": "#5CC08A", "CHARGING": BLUE, "FAULT": "#F2685C",
-                 "IDLE": MUTED, "OFFLINE": MUTED}
-
-# ---------- Page styling (CSS) ----------
-st.html(f"""
-<style>
-  .block-container {{ padding-top: 2.2rem; }}
-  .eyebrow {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; letter-spacing: 0.14em;
-              text-transform: uppercase; color: {BLUE}; margin-bottom: 0.2rem; }}
-  .status-row {{ display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; padding-top: 1.6rem; }}
-  .chip {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; padding: 0.3rem 0.7rem;
-           border: 1px solid {LINE}; border-radius: 999px; color: {INK}; background: {SURFACE}; }}
-  .chip b {{ font-weight: 500; margin-left: 0.35rem; }}
-  .dot {{ display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.4rem; }}
-  .st-key-panel, .st-key-panel2 {{ background: {SURFACE}; }}
-  .board {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.6rem; }}
-  .tile {{ background: {SURFACE}; border: 1px solid {LINE}; border-radius: 4px; padding: 0.7rem 0.8rem; }}
-  .tile .id {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: {INK}; }}
-  .tile .vendor {{ font-size: 0.75rem; color: {MUTED}; margin-bottom: 0.5rem; }}
-  .tile .state {{ font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.06em; }}
-  .tile .bar {{ height: 4px; background: {LINE}; border-radius: 2px; margin-top: 0.55rem; overflow: hidden; }}
-  .tile .bar i {{ display: block; height: 100%; }}
-  .st-key-raw, .st-key-canon, .st-key-timeline {{ background: {SURFACE}; }}
-  .stButton button[kind="primary"] {{ color: #0E151D; font-weight: 600; }}
-</style>
-""")
-
-
-# Charts follow the same quiet style as the page
-@alt.theme.register("nr6", enable=True)
-def nr6_chart_theme():
-    return {"config": {
-        "font": "Public Sans",
-        "background": "transparent",
-        "axis": {"labelColor": MUTED, "titleColor": MUTED, "gridColor": "#1F2B38",
-                 "domainColor": "#33445A", "tickColor": "#33445A", "titleFontWeight": 500},
-        "legend": {"labelColor": INK},
-        "view": {"stroke": None},
-    }}
+apply_style()
 
 
 # ---------- Sidebar: build a fleet and run a new simulation ----------
@@ -99,6 +54,21 @@ with st.sidebar:
                 save_telemetry(run_pipeline(chosen, days))
             st.toast(f"Simulated {sum(chosen.values())} robots for {days} days")
 
+# ---------- Health model: trained once, then reused ----------
+@st.cache_resource(show_spinner="Training the health model (first run only, about 30 seconds)...")
+def get_health_model():
+    return train_model()
+
+
+def risk_level(risk):
+    """Turn a probability into a label and a colour people can act on."""
+    if risk >= 0.4:
+        return "HIGH", RED
+    if risk >= 0.15:
+        return "WATCH", YELLOW
+    return "LOW", GREEN
+
+
 # ---------- Data ----------
 summary = m.fleet_summary().iloc[0]
 vendors = m.by_vendor()
@@ -113,6 +83,11 @@ start = pd.Timestamp(summary["period_start"]).strftime("%a %d %b")
 end = pd.Timestamp(summary["period_end"]).strftime("%a %d %b %Y")
 per_robot_hour = summary["interventions"] / summary["robot_hours"]
 state_counts = robots["current_state"].value_counts()
+
+telemetry = m.all_telemetry()
+has_temperature = "motor_temp_c" in telemetry.columns and telemetry["motor_temp_c"].notna().any()
+if has_temperature:
+    risk = current_risk(telemetry, get_health_model()).set_index("robot")
 
 # Only show vendors that are actually in this fleet, each in its own colour
 present = [v for v in VENDOR_COLOURS if v in set(vendors["vendor"])]
@@ -147,7 +122,17 @@ c4.metric("Robot-hours worked", f"{summary['robot_hours']:,.0f}", border=True,
           help=f"{summary['robots']:.0f} robots")
 
 # ---------- Fleet board: every robot at a glance ----------
+def risk_badge(robot_id):
+    """A small line on each tile with the model's 6-hour fault risk."""
+    if not has_temperature:
+        return ""
+    p = risk.loc[robot_id, "risk"]
+    label, colour = risk_level(p)
+    return f'<div class="risk" style="color:{colour}">{label} · {p:.0%}</div>'
+
+
 st.subheader("Fleet now")
+st.caption("State, battery and the health model's 6-hour fault risk for every robot")
 tiles = ""
 for _, r in robots.sort_values("robot").iterrows():
     colour = STATE_COLOURS.get(r["current_state"], MUTED)
@@ -156,9 +141,44 @@ for _, r in robots.sort_values("robot").iterrows():
         f'<div class="vendor">{r["vendor"]}</div>'
         f'<div class="state" style="color:{colour}"><span class="dot" style="background:{colour}"></span>'
         f'{r["current_state"]}</div>'
-        f'<div class="bar"><i style="width:{r["battery"]:.0f}%;background:{colour}"></i></div></div>'
+        f'<div class="bar"><i style="width:{r["battery"]:.0f}%;background:{colour}"></i></div>'
+        f'{risk_badge(r["robot"])}</div>'
     )
 st.html(f'<div class="board">{tiles}</div>')
+
+# ---------- Robots to check first, ranked by the health model ----------
+if has_temperature:
+    st.write("")
+    st.html('<div class="eyebrow">Predictive maintenance · AI</div>')
+    st.subheader("Robots to check first")
+    top = risk.head(3).reset_index()
+
+    def reason(row):
+        reasons = []
+        if row["temp_avg_last_6h"] >= 52:
+            reasons.append(f"motor running hot ({row['temp_avg_last_6h']:.0f}°C average over 6h)")
+        if row["vendor"] == "Unitree":
+            reasons.append("humanoid: high base fault rate")
+        if row["faults_last_24h"] >= 2:
+            reasons.append(f"{row['faults_last_24h']:.0f} faults in the last 24h")
+        return "; ".join(reasons) or "no single warning sign; overall pattern"
+
+    top["Why"] = top.apply(reason, axis=1)
+    top["Risk level"] = top["risk"].map(lambda p: risk_level(p)[0])
+    st.dataframe(
+        top[["robot", "vendor", "risk", "Risk level", "temp_avg_last_6h", "Why"]],
+        hide_index=True, width="stretch",
+        column_config={
+            "robot": "Robot", "vendor": "Vendor",
+            "risk": st.column_config.ProgressColumn("Fault risk, next 6h", format="percent",
+                                                    min_value=0.0, max_value=1.0),
+            "temp_avg_last_6h": st.column_config.NumberColumn("Motor temp, 6h avg", format="%.0f°C"),
+        },
+    )
+    st.caption("Logistic regression trained on a simulated month; test AUC 0.82. "
+               "Risk is the estimated chance of a new fault in the next 6 hours.")
+else:
+    st.info("Run a simulation from the sidebar to generate motor temperature data for the health model.")
 
 st.write("")
 
@@ -247,17 +267,17 @@ raw = ENCODERS[vendor](snapshot, datetime.fromisoformat(row["observed_at"]))
 canonical = asdict(ADAPTERS[vendor](raw))
 
 raw_col, canon_col = st.columns(2)
-with raw_col.container(border=True, key="raw"):
+with raw_col.container(border=True, key="panel_raw"):
     st.markdown(f"**What the {vendor} robot sends**")
     st.caption(f"{vendor}'s own field names, codes and units")
     st.json(raw)
-with canon_col.container(border=True, key="canon"):
+with canon_col.container(border=True, key="panel_canon"):
     st.markdown("**What NR6 stores**")
     st.caption(f"After the {vendor} adapter: the same for every brand")
     st.json(canonical)
 
 # The robot's last two days: battery level, with fault moments marked in red
-with st.container(border=True, key="timeline"):
+with st.container(border=True, key="panel_timeline"):
     st.markdown(f"**{chosen_robot} · last 48 hours**")
     recent = history.tail(48 * 12).copy()
     recent["time"] = pd.to_datetime(recent["observed_at"])
