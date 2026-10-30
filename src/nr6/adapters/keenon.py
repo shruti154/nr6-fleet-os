@@ -23,6 +23,10 @@ def to_canonical(raw):
     if raw["faults"]:                       # an empty list means no fault
         fault = FAULT_MAP.get(raw["faults"][0]["id"], "UNKNOWN")
 
+    temp_c = None
+    if raw.get("motor_temp_f") is not None:
+        temp_c = round((raw["motor_temp_f"] - 32) * 5 / 9, 1)   # Keenon reports Fahrenheit
+
     observed = datetime.fromisoformat(raw["time"].replace("Z", "+00:00"))
 
     return CanonicalRecord(
@@ -32,4 +36,5 @@ def to_canonical(raw):
         battery_pct=raw["battery_pct"] * 100,   # Keenon sends 0 to 1
         fault_code=fault,
         observed_at=observed.isoformat(),
+        motor_temp_c=temp_c,
     )

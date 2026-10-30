@@ -33,4 +33,5 @@ def to_canonical(raw):
         battery_pct=raw["power"],
         fault_code=fault,
         observed_at=observed.isoformat(),
+        motor_temp_c=raw.get("motorTemp"),               # already in °C
     )

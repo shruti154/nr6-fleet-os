@@ -48,3 +48,15 @@ def test_impossible_battery_is_rejected():
         CanonicalRecord(robot_serial="X", vendor="Test", state="WORKING",
                         battery_pct=150, fault_code=None,
                         observed_at="2026-10-19T08:05:00+00:00")
+        
+
+
+def test_keenon_fahrenheit_is_converted_to_celsius():
+    message = dict(KEENON_MESSAGE, motor_temp_f=122.0)     # 122 °F is 50 °C
+    record = keenon.to_canonical(message)
+    assert record.motor_temp_c == pytest.approx(50.0)
+
+
+def test_missing_temperature_is_allowed():
+    record = pudu.to_canonical(PUDU_MESSAGE)               # this message has no temperature
+    assert record.motor_temp_c is None

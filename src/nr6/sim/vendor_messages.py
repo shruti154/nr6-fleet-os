@@ -16,6 +16,16 @@ KEENON_STATES, KEENON_FAULTS = reverse(keenon.STATE_MAP), reverse(keenon.FAULT_M
 UNITREE_STATES, UNITREE_FAULTS = reverse(unitree.STATE_MAP), reverse(unitree.FAULT_MAP)
 
 
+def temperature(robot):
+    """The robot's motor temperature in °C, or None if we don't have one."""
+    temp = getattr(robot, "motor_temp", None)
+    return None if temp is None else round(temp, 1)
+
+
+def fahrenheit(celsius):
+    return None if celsius is None else round(celsius * 9 / 5 + 32, 1)
+
+
 def pudu_message(robot, when):
     return {
         "sn": robot.robot_id,
@@ -23,6 +33,7 @@ def pudu_message(robot, when):
         "power": round(robot.battery),
         "errCode": PUDU_FAULTS[robot.fault_code] if robot.fault_code else None,
         "ts": int(when.timestamp() * 1000),            # milliseconds
+        "motorTemp": temperature(robot),               # °C
     }
 
 
@@ -33,6 +44,7 @@ def keenon_message(robot, when):
         "battery_pct": round(robot.battery) / 100,     # 0 to 1
         "faults": [{"id": KEENON_FAULTS[robot.fault_code]}] if robot.fault_code else [],
         "time": when.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "motor_temp_f": fahrenheit(temperature(robot)),  # Keenon uses Fahrenheit
     }
 
 
@@ -43,6 +55,7 @@ def unitree_message(robot, when):
         "bms": {"soc": round(robot.battery)},
         "error_flags": UNITREE_FAULTS[robot.fault_code] if robot.fault_code else 0,
         "t": int(when.timestamp()),                    # seconds
+        "motor_temp_max_c": temperature(robot),        # °C
     }
 
 

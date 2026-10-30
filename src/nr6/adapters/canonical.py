@@ -13,6 +13,7 @@ class CanonicalRecord:
     battery_pct: float       # always 0 to 100
     fault_code: str | None   # NR6's own fault name, or None if no fault
     observed_at: str         # date and time in ISO 8601 format, UTC
+    motor_temp_c: float | None = None   # motor temperature in °C, if the vendor reports it
 
     def __post_init__(self):
         """Runs automatically after a record is created: reject anything invalid."""

@@ -32,4 +32,5 @@ def to_canonical(raw):
         battery_pct=raw["bms"]["soc"],          # battery is tucked inside "bms"
         fault_code=fault,
         observed_at=observed.isoformat(),
+        motor_temp_c=raw.get("motor_temp_max_c"),        # hottest of its many motors, °C
     )

@@ -10,7 +10,8 @@ REPORTS_PER_HOUR = 12
 LOOKBACK = 24 * REPORTS_PER_HOUR      # features use the last 24 hours
 HORIZON = 6 * REPORTS_PER_HOUR        # predict a fault in the next 6 hours
 VENDORS = ["Keenon", "Pudu", "Unitree"]
-FEATURES = ["faults_last_24h", "fault_time_last_24h", "battery_pct"] + [f"is_{v}" for v in VENDORS]
+FEATURES = ["motor_temp_c", "temp_avg_last_6h", "faults_last_24h", "fault_time_last_24h", "battery_pct"] + \
+    [f"is_{v}" for v in VENDORS]
 
 
 def make_features(telemetry):
@@ -27,6 +28,7 @@ def make_features(telemetry):
         # Looking back: what happened in the last 24 hours
         g["faults_last_24h"] = g["fault_started"].rolling(LOOKBACK, min_periods=1).sum()
         g["fault_time_last_24h"] = g["in_fault"].rolling(LOOKBACK, min_periods=1).mean()
+        g["temp_avg_last_6h"] = g["motor_temp_c"].rolling(HORIZON, min_periods=1).mean()
         # Looking forward: did a new fault start in the next 6 hours? (the answer we try to predict)
         future = g["fault_started"][::-1].rolling(HORIZON, min_periods=1).sum()[::-1].shift(-1)
         g["fault_next_6h"] = (future > 0).astype(int)
