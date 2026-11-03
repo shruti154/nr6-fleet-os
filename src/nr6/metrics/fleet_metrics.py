@@ -1,6 +1,9 @@
+import random
+
 import duckdb
 
 from nr6.db import DB_FILE
+from nr6.pipeline import run_pipeline, save_telemetry
 
 HOURS_PER_REPORT = 5 / 60   # each telemetry record covers 5 minutes
 
@@ -16,9 +19,22 @@ WITH_FAULT_STARTS = """
 """
 
 
+STARTER_FLEET = {"pudu_cc1": 3, "keenon_t8": 3, "pudu_t300": 2, "unitree_g1": 1}
+
+
+def ensure_database():
+    """A new computer (or the cloud) has no database yet, because we never put it
+    in git. If it is missing, simulate a starter week so the dashboard has data."""
+    if DB_FILE.exists():
+        return
+    random.seed(42)
+    save_telemetry(run_pipeline(STARTER_FLEET, days=7))
+
+
 def run_query(sql, params=None):
     """Run one SQL query against the fleet database and return a pandas table.
     params fills in any ? placeholders safely."""
+    ensure_database()
     con = duckdb.connect(str(DB_FILE), read_only=True)
     result = con.execute(sql, params or []).df()
     con.close()
