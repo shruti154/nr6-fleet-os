@@ -5,3 +5,6 @@ __pycache__/
 .env
 *.egg-info/
 .pytest_cache/
+.streamlit/secrets.toml
+.agents/
+.claude/
