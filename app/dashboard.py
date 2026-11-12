@@ -51,7 +51,7 @@ with st.sidebar:
         else:
             with st.spinner("Simulating the fleet..."):
                 random.seed(seed)
-                save_telemetry(run_pipeline(chosen, days))
+                save_telemetry(run_pipeline(chosen, days)); m.save_inventory(chosen)
             st.toast(f"Simulated {sum(chosen.values())} robots for {days} days")
 
 # ---------- Health model: trained once, then reused ----------

@@ -1,0 +1,31 @@
+# NR6 customers and their sites. All names are made up for the demo.
+# sector must match a sector id in catalogue.yaml.
+# sla_uptime_pct is the uptime NR6 has promised that site.
+customers:
+  - id: harbourline
+    name: Harbourline Hotels
+    sites:
+      - id: harbourline_canary
+        name: Harbourline Canary Wharf
+        sector: hospitality
+        sla_uptime_pct: 98.0
+
+  - id: brightway
+    name: Brightway Retail
+    sites:
+      - id: brightway_stratford
+        name: Brightway Stratford
+        sector: retail
+        sla_uptime_pct: 97.5
+
+  - id: castlefield
+    name: Castlefield Logistics
+    sites:
+      - id: castlefield_dagenham
+        name: Castlefield Dagenham DC
+        sector: warehousing
+        sla_uptime_pct: 98.5
+      - id: castlefield_lab
+        name: Castlefield Innovation Lab
+        sector: pilots
+        sla_uptime_pct: 96.0

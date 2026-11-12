@@ -22,6 +22,11 @@ Rules:
   - availability_pct: share of time the robot was not in a fault state.
   - fault_risk_next_6h_pct: the health model's predicted chance of a new fault in the next 6 hours.
     Only this column is a prediction. If it is missing, say risk scores are not available.
+  - sla_uptime_pct: the uptime NR6 promised that site (the SLA).
+  - uptime_pct: the uptime the site's robots actually delivered.
+  - margin_pct: uptime_pct minus sla_uptime_pct. Below zero means the promise was missed.
+  - sla_met: True when the promise was kept.
+- Each robot works at one site, and each site belongs to one customer.
 - Use British English. The data is simulated."""
 
 
@@ -32,7 +37,8 @@ def fleet_facts(risk=None):
     vendors["per_robot_hour"] = (vendors["interventions"] / vendors["robot_hours"]).round(3)
     vendors = vendors.rename(columns={"fault_pct": "pct_time_in_fault",
                                       "per_robot_hour": "interventions_per_robot_hour"})
-    robots = m.robot_table()
+    robots = m.robot_table().merge(m.inventory_table()[["robot", "model", "site"]], on="robot", how="left")
+    sites = m.by_site().drop(columns="robot_hours")
 
     if risk is not None:
         cols = ["robot", "risk", "temp_avg_last_6h", "faults_last_24h"]
@@ -53,6 +59,8 @@ availability_pct: {summary['availability_pct']:.1f}
 
 BY VENDOR
 {vendors.round(3).to_csv(index=False)}
+BY SITE
+{sites.round(2).to_csv(index=False)}
 BY ROBOT
 {robots.round(2).to_csv(index=False)}"""
 
@@ -66,6 +74,6 @@ def answer(question, risk=None):
 if __name__ == "__main__":
     print("These are the facts the AI will see:\n")
     print(fleet_facts())
-    question = "Which vendor is the least reliable, and what should we do about it?"
+    question = "Which sites are missing their uptime promise, and which robot is the cause?"
     print(f"\nQuestion: {question}\n")
     print(answer(question))

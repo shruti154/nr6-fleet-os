@@ -1,9 +1,11 @@
+
 import random
 
 import duckdb
 
 from nr6.db import DB_FILE
 from nr6.pipeline import run_pipeline, save_telemetry
+from nr6.sites import save_inventory
 
 HOURS_PER_REPORT = 5 / 60   # each telemetry record covers 5 minutes
 
@@ -22,13 +24,25 @@ WITH_FAULT_STARTS = """
 STARTER_FLEET = {"pudu_cc1": 3, "keenon_t8": 3, "pudu_t300": 2, "unitree_g1": 1}
 
 
+def database_is_complete():
+    """True when the database file exists and has all three tables we need."""
+    if not DB_FILE.exists():
+        return False
+    con = duckdb.connect(str(DB_FILE), read_only=True)
+    tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+    con.close()
+    return {"telemetry", "sites", "inventory"} <= tables
+
+
 def ensure_database():
     """A new computer (or the cloud) has no database yet, because we never put it
-    in git. If it is missing, simulate a starter week so the dashboard has data."""
-    if DB_FILE.exists():
+    in git. If it is missing or incomplete, simulate a starter week and record
+    which robot is at which site."""
+    if database_is_complete():
         return
     random.seed(42)
     save_telemetry(run_pipeline(STARTER_FLEET, days=7))
+    save_inventory(STARTER_FLEET)
 
 
 def run_query(sql, params=None):
@@ -133,3 +147,40 @@ def robot_history(robot_serial):
 def all_telemetry():
     """Every canonical record, for the health model."""
     return run_query("SELECT * FROM telemetry ORDER BY robot_serial, observed_at")
+
+
+def by_site():
+    """Uptime for each site compared with the uptime NR6 promised (the SLA).
+    Joins three tables: telemetry -> inventory (robot to site) -> sites (the promise)."""
+    return run_query(f"""
+        WITH t AS ({WITH_FAULT_STARTS}),
+        site_totals AS (
+            SELECT s.customer,
+                   s.site,
+                   s.sector,
+                   s.sla_uptime_pct,
+                   COUNT(DISTINCT t.robot_serial)                                   AS robots,
+                   SUM(CASE WHEN t.state = 'WORKING' THEN 1 ELSE 0 END) * {HOURS_PER_REPORT} AS robot_hours,
+                   SUM(CASE WHEN t.fault_started THEN 1 ELSE 0 END)                 AS interventions,
+                   100 * AVG(CASE WHEN t.state = 'FAULT' THEN 0 ELSE 1 END)         AS uptime_pct
+            FROM t
+            JOIN inventory i ON i.robot_serial = t.robot_serial
+            JOIN sites s     ON s.site_id = i.site_id
+            GROUP BY s.customer, s.site, s.sector, s.sla_uptime_pct
+        )
+        SELECT *,
+               uptime_pct - sla_uptime_pct  AS margin_pct,     -- above zero: promise kept
+               uptime_pct >= sla_uptime_pct AS sla_met
+        FROM site_totals
+        ORDER BY customer, site
+    """)
+
+
+def inventory_table():
+    """Where every robot is: robot, model, category, site and customer."""
+    return run_query("""
+        SELECT i.robot_serial AS robot, i.model, i.category, s.site, s.customer
+        FROM inventory i
+        JOIN sites s ON s.site_id = i.site_id
+        ORDER BY i.robot_serial
+    """)
