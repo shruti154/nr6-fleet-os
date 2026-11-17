@@ -41,7 +41,7 @@ def ensure_database():
     if database_is_complete():
         return
     random.seed(42)
-    save_telemetry(run_pipeline(STARTER_FLEET, days=7))
+    save_telemetry(run_pipeline(STARTER_FLEET, days=7, battery_fault={"robot": "NR6-0004", "from_day": 6, "drain_times": 1.8}))
     save_inventory(STARTER_FLEET)
 
 
