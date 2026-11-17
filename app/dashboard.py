@@ -262,7 +262,7 @@ vendor = row["vendor"]
 # Rebuild what the robot sent at that moment, in its own vendor's format,
 # then translate it with the same adapter the pipeline uses.
 snapshot = SimpleNamespace(robot_id=chosen_robot, state=row["state"],
-                           battery=row["battery_pct"], fault_code=row["fault_code"] if pd.notna(row["fault_code"]) else None)
+                           battery=row["battery_pct"], fault_code=row["fault_code"] if pd.notna(row["fault_code"]) else None, motor_temp=row["motor_temp_c"] if pd.notna(row["motor_temp_c"]) else None)
 raw = ENCODERS[vendor](snapshot, datetime.fromisoformat(row["observed_at"]))
 canonical = asdict(ADAPTERS[vendor](raw))
 

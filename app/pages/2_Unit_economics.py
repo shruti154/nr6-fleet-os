@@ -69,7 +69,7 @@ margin = revenue - cost
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Fleet revenue / month", f"£{revenue:,.0f}", border=True, help=f"{fleet['qty'].sum()} robots")
 k2.metric("Fleet cost / month", f"£{cost:,.0f}", border=True, help="Running costs plus depreciation")
-k3.metric("Fleet margin / month", f"£{margin:,.0f}", f"{(margin / revenue * 100) if revenue else 0:.0f}% of revenue",
+k3.metric("Fleet margin / month", f"{'-' if margin < 0 else ''}£{abs(margin):,.0f}", f"{(margin / revenue * 100) if revenue else 0:.0f}% of revenue",
           border=True)
 k4.metric("Capital to buy the fleet", f"£{capex:,.0f}", border=True, help="Cash needed before the first invoice")
 

@@ -137,7 +137,7 @@ def daily_kpis():
 def robot_history(robot_serial):
     """Every report from one robot, in time order."""
     return run_query("""
-        SELECT observed_at, vendor, state, battery_pct, fault_code
+        SELECT observed_at, vendor, state, battery_pct, fault_code, motor_temp_c
         FROM telemetry
         WHERE robot_serial = ?
         ORDER BY observed_at
