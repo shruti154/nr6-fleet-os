@@ -169,3 +169,5 @@ Run the tests with `pytest -q`.
 ---
 
 <sub>Built by Shruti M · Python, DuckDB, scikit-learn, Streamlit, Gemini</sub>
+
+© 2026 Shruti M. All rights reserved
